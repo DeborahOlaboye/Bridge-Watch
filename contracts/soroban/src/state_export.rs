@@ -103,12 +103,28 @@ impl StateExportHelper {
         risk_score: u32,
         timestamp: u64,
     ) -> String {
-        let mut hash_input = String::from_str(&env, "");
-        hash_input = String::from_str(
-            &env,
-            &format!("{}{}{}{}", asset_code, status, risk_score, timestamp),
-        );
-        hash_input
+        let code_len = asset_code.len() as usize;
+        let status_len = status.len() as usize;
+        // Layout: <asset_code>|<status>|<risk_score_be4>|<timestamp_be8>
+        let total_len = code_len + 1 + status_len + 1 + 4 + 8;
+        let mut raw = [0u8; 512];
+        if total_len > 512 {
+            panic!("hash input too long");
+        }
+        let mut pos = 0;
+        asset_code.copy_into_slice(&mut raw[pos..pos + code_len]);
+        pos += code_len;
+        raw[pos] = b'|';
+        pos += 1;
+        status.copy_into_slice(&mut raw[pos..pos + status_len]);
+        pos += status_len;
+        raw[pos] = b'|';
+        pos += 1;
+        raw[pos..pos + 4].copy_from_slice(&risk_score.to_be_bytes());
+        pos += 4;
+        raw[pos..pos + 8].copy_from_slice(&timestamp.to_be_bytes());
+        pos += 8;
+        String::from_bytes(&env, &raw[..pos])
     }
 
     /// Build a placeholder snapshot when no health record exists yet.

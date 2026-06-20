@@ -27,6 +27,11 @@ import type {
   UpdateAlertRoutingRuleRequest,
   ProvenanceGraph,
   ProvenanceListItem,
+  AccessAuditEntry,
+  AccessAuditStats,
+  AdminMember,
+  AdminRotationEvent,
+  AccessSession,
 } from "../types";
 const API_BASE_URL = "/api/v1";
 
@@ -707,4 +712,106 @@ export function getProvenanceLineage(
   if (asset) params.set("asset", asset);
   if (bridge) params.set("bridge", bridge);
   return fetchApi<ProvenanceGraph>(`/provenance/lineage?${params.toString()}`);
+}
+
+// Operational Access Audit Console
+
+export function getAccessAuditEntries(
+  apiKey: string,
+  options?: {
+    actorId?: string;
+    action?: string;
+    severity?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+    flagged?: boolean;
+  }
+) {
+  const params = new URLSearchParams();
+  if (options?.actorId) params.set("actorId", options.actorId);
+  if (options?.action) params.set("action", options.action);
+  if (options?.severity) params.set("severity", options.severity);
+  if (options?.from) params.set("from", options.from);
+  if (options?.to) params.set("to", options.to);
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  if (options?.offset != null) params.set("offset", String(options.offset));
+  if (options?.flagged) params.set("flagged", "true");
+  const qs = params.toString();
+  return fetchApi<{ entries: AccessAuditEntry[]; total: number; limit: number; offset: number; flaggedActions: string[] }>(
+    `/admin/access-audit/entries${qs ? `?${qs}` : ""}`,
+    undefined,
+    apiKey
+  );
+}
+
+export function getAccessAuditStats(apiKey: string, from?: string) {
+  const qs = from ? `?from=${encodeURIComponent(from)}` : "";
+  return fetchApi<AccessAuditStats>(
+    `/admin/access-audit/stats${qs}`,
+    undefined,
+    apiKey
+  );
+}
+
+export function getAccessAuditRoles(apiKey: string, activeOnly = true) {
+  const qs = activeOnly ? "?activeOnly=true" : "?activeOnly=false";
+  return fetchApi<{ admins: AdminMember[]; recentEvents: AdminRotationEvent[] }>(
+    `/admin/access-audit/roles${qs}`,
+    undefined,
+    apiKey
+  );
+}
+
+export function getAccessAuditSessions(
+  apiKey: string,
+  options?: {
+    userId?: string;
+    status?: "active" | "expired" | "revoked";
+    page?: number;
+    limit?: number;
+  }
+) {
+  const params = new URLSearchParams();
+  if (options?.userId) params.set("userId", options.userId);
+  if (options?.status) params.set("status", options.status);
+  if (options?.page != null) params.set("page", String(options.page));
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  const qs = params.toString();
+  return fetchApi<{ success: boolean; data: AccessSession[]; meta: { total: number; totalPages: number; page: number; limit: number } }>(
+    `/admin/access-audit/sessions${qs ? `?${qs}` : ""}`,
+    undefined,
+    apiKey
+  );
+}
+
+export async function exportAccessAudit(
+  apiKey: string,
+  options?: { actorId?: string; action?: string; severity?: string; from?: string; to?: string }
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (options?.actorId) params.set("actorId", options.actorId);
+  if (options?.action) params.set("action", options.action);
+  if (options?.severity) params.set("severity", options.severity);
+  if (options?.from) params.set("from", options.from);
+  if (options?.to) params.set("to", options.to);
+  const qs = params.toString();
+
+  const response = await fetch(
+    `${API_BASE_URL}/admin/access-audit/export${qs ? `?${qs}` : ""}`,
+    { headers: { "x-api-key": apiKey } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `access-audit-${Date.now()}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

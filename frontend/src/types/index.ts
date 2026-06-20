@@ -488,3 +488,97 @@ export interface ProvenanceListItem {
   lastUpdated: string;
   nodeCount: number;
 }
+
+// Operational Access Audit Console types
+
+export type AccessAuditAction =
+  | "auth.login"
+  | "auth.logout"
+  | "auth.api_key_created"
+  | "auth.api_key_revoked"
+  | "admin.config_changed"
+  | "admin.provider_allowlist_changed"
+  | "admin.user_permission_changed"
+  | "admin.retention_policy_changed";
+
+export type AccessAuditSeverity = "info" | "warning" | "critical";
+
+export interface AccessAuditEntry {
+  id: string;
+  action: AccessAuditAction;
+  actorId: string;
+  actorType: "user" | "api_key" | "system";
+  ipAddress: string | null;
+  userAgent: string | null;
+  resourceType: string | null;
+  resourceId: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  metadata: Record<string, unknown>;
+  severity: AccessAuditSeverity;
+  checksum: string;
+  createdAt: string;
+}
+
+export interface AccessAuditStats {
+  total: number;
+  bySeverity: Record<AccessAuditSeverity, number>;
+  byAction: Record<string, number>;
+  recentCount: number;
+  activeAdminCount: number;
+  trackedActions: AccessAuditAction[];
+  flaggedActions: AccessAuditAction[];
+}
+
+export type AdminMemberRole = "super_admin" | "operator" | "auditor" | "viewer";
+
+export interface AdminMember {
+  id: string;
+  address: string;
+  name: string;
+  email: string | null;
+  roles: AdminMemberRole[];
+  isActive: boolean;
+  addedBy: string;
+  activatedAt: string | null;
+  deactivatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminRotationEventType =
+  | "added"
+  | "removed"
+  | "activated"
+  | "deactivated"
+  | "role_changed";
+
+export interface AdminRotationEvent {
+  id: string;
+  eventType: AdminRotationEventType;
+  adminAddress: string;
+  actorAddress: string;
+  beforeState: Record<string, unknown> | null;
+  afterState: Record<string, unknown> | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export type AccessSessionStatus = "active" | "expired" | "revoked";
+
+export interface AccessSession {
+  id: string;
+  userId: string;
+  deviceId: string | null;
+  deviceName: string | null;
+  deviceType: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  status: AccessSessionStatus;
+  expiresAt: string | null;
+  lastActiveAt: string | null;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
